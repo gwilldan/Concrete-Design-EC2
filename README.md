@@ -52,6 +52,7 @@ Begin with `00_Start_Here/0.1_Project_brief_and_references.ipynb`.
 | `06_Pad_Foundation_Design` | Internal column pad; pad with moment |
 | `ec2/` | Calculation library. `project.py` = all project inputs; `codes.py` = code tables and national parameters |
 | `tests/` | Checks against published results |
+| `Docs/` | Guides: [use a stand-alone sheet](Docs/Use_a_standalone_sheet.md), [make your own notebook](Docs/Make_your_own_notebook.md), [redesign the example building](Docs/Redesign_the_example_building.md) |
 | `calc_sheets/` | Printed sheets without code (PDF) |
 | `images/photos/` | Site photos with licences in `credits.json` |
 | `LICENSE` | CC BY-NC 4.0, non-commercial use only |

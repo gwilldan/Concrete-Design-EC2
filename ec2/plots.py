@@ -489,7 +489,7 @@ def sketch_plan(bx=None, by=None):
         _dim(ax, (X[-1] + 2.6, Y[i]), (X[-1] + 2.6, Y[i + 1]), f"{by[i]} m", .45, vertical=True)
     ax.set_xlim(-2, X[-1] + 3.6)
     ax.set_ylim(-2, Y[-1] + 1.9)
-    ax.set_title("Typical floor plan used throughout the guide")
+    ax.set_title("Typical floor plan of the example building")
     _bare(ax)
     plt.show()
 
