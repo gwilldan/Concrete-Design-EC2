@@ -151,12 +151,41 @@ class Span:
         return l, r
 
 
+def _overhang_VM(o, free):
+    """Shear and moment along an overhang Span whose free end is on side `free` ('left' or 'right')."""
+    x = grid(o.L, o.loads)
+    V, M = np.zeros_like(x), np.zeros_like(x)
+    if free == "right":                      # the support at x = 0 carries the whole overhang load
+        for q in o.loads:
+            w, xb = _resultant(q, o.L)
+            V, M = V + w, M + w * (x - xb)
+    for q in o.loads:
+        w, m = _left_VM(q, x, o.L)
+        V, M = V - w, M - m
+    return x, V, M
+
+
 class ContinuousBeam:
-    """left/right end: 'pin', 'fixed' or a number = known end moment (sagging +, e.g. overhang -15)."""
+    """left/right end: 'pin', 'fixed' or a number = known end moment (sagging +, e.g. overhang -15).
+
+    overhang_left/right: a number = load the overhang adds to the end reaction, or a Span(length, loads)
+    for the overhang itself (Point, UDL or UVL, positions from its left end). A Span sets the end moment
+    and the reaction by statics, and its shear and moment are drawn with the beam.
+    """
 
     def __init__(self, spans, left="pin", right="pin", overhang_left=0.0, overhang_right=0.0):
-        self.spans, self.left, self.right = spans, left, right
-        self.oh = (overhang_left, overhang_right)
+        ends, oh, self.overhangs = [left, right], [overhang_left, overhang_right], [None, None]
+        for k, o in enumerate(oh):
+            if isinstance(o, Span):
+                if ends[k] != "pin":
+                    raise ValueError("give the overhang as a Span or its end moment as a number, not both")
+                W = M = 0.0
+                for q in o.loads:
+                    w, xb = _resultant(q, o.L)
+                    W, M = W + w, M - w * (xb if k else o.L - xb)     # hogging at the support
+                ends[k], oh[k], self.overhangs[k] = M, W, o
+        self.spans, (self.left, self.right) = spans, ends
+        self.oh = tuple(oh)
         self.names = [chr(65 + i) for i in range(len(spans) + 1)]
 
     # --- Clapeyron
@@ -269,6 +298,12 @@ class ContinuousBeam:
         self.R[0] += self.oh[0]
         self.R[n] += self.oh[1]
         self.X, self.V, self.M = X, V, M
+        # overhang diagrams, kept apart so X, V, M stay one entry per span
+        self.oh_diagrams = [None, None]
+        for k, o in enumerate(self.overhangs):
+            if o is not None:
+                x, v, m = _overhang_VM(o, "right" if k else "left")
+                self.oh_diagrams[k] = (x + off if k else x - o.L, v, m)
         return X, V, M
 
 

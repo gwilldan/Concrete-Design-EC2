@@ -29,6 +29,40 @@ def test_nptel_12_1():
     assert b.Vends[1] == pytest.approx((5.3125, -4.6875))
 
 
+def test_nptel_12_1_overhang_span():
+    # NPTEL Fig. 12.4a: overhang CD = 3 m with 5 kN at D, so M_C = -5 x 3 = -15 and R_C gains the 5 kN
+    oh = Span(3, [Point(5, 3)])
+    b = ContinuousBeam([Span(10, [UDL(1), Point(10, 5)]), Span(10, [UDL(1)])], overhang_right=oh)
+    assert b.three_moment() == pytest.approx([0, -18.125, -15])
+    assert b.moment_distribution() == pytest.approx([0, -18.125, -15], abs=1e-3)
+    b.diagrams()
+    assert b.R == pytest.approx([8.1875, 17.125, 9.6875])
+    assert sum(b.R) == pytest.approx(10 + 10 + 10 + 5)
+    x, V, M = b.oh_diagrams[1]
+    assert (x[0], x[-1]) == pytest.approx((20, 23))
+    assert (V.min(), V.max()) == pytest.approx((5, 5))
+    assert (M[0], M[-1]) == pytest.approx((-15, 0))
+    # the mirror image, with the overhang on the left, gives the mirrored answer
+    m = ContinuousBeam([Span(10, [UDL(1)]), Span(10, [UDL(1), Point(10, 5)])], overhang_left=Span(3, [Point(5, 0)]))
+    assert m.three_moment() == pytest.approx([-15, -18.125, 0])
+    m.diagrams()
+    assert m.R == pytest.approx([9.6875, 17.125, 8.1875])
+    assert m.oh_diagrams[0][2][-1] == pytest.approx(-15)
+    with pytest.raises(ValueError):
+        ContinuousBeam([Span(10, [UDL(1)])], right=-15, overhang_right=oh)
+
+
+def test_overhang_udl_by_statics():
+    # 2 m overhang with 10 kN/m: M = -w a^2 / 2 = -20, and the overhang adds w a = 20 kN to its support
+    b = ContinuousBeam([Span(6, [UDL(10)]), Span(6, [UDL(10)])], overhang_right=Span(2, [UDL(10)]))
+    ref = ContinuousBeam([Span(6, [UDL(10)]), Span(6, [UDL(10)])], right=-20, overhang_right=20)
+    assert b.three_moment() == pytest.approx(ref.three_moment())
+    assert b.right == pytest.approx(-20)
+    b.diagrams(), ref.diagrams()
+    assert b.R == pytest.approx(ref.R)
+    assert sum(b.R) == pytest.approx(10 * 14)
+
+
 def test_nptel_12_2_equations():
     # NPTEL equations (4),(5): 20 MA + 10 MB = -500 ; 5 MA + 20 MB = -312.5. The printed answer
     # (-37.5, -6.25) does not satisfy them; the solution is below and moment distribution agrees.

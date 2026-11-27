@@ -112,6 +112,12 @@ def continuous(cb, title="", unit=""):
     f, (a0, a1, a2) = plt.subplots(3, 1, figsize=(8.2, 6.6), sharex=True, height_ratios=[1.1, 1.2, 1.3])
     off, lv, tot = 0, 0, sum(s.L for s in cb.spans)
     a0.plot([0, tot], [0, 0], color=INK, lw=4, solid_capstyle="butt")
+    ohs = [(k, o, -o.L if k == 0 else tot) for k, o in enumerate(getattr(cb, "overhangs", (None, None))) if o is not None]
+    for k, o, x0 in ohs:
+        a0.plot([x0, x0 + o.L], [0, 0], color=INK, lw=4, solid_capstyle="butt")
+        lv = max(lv, _loads(a0, o.loads, o.L, x0))
+        a0.text(x0 + o.L / 2, -.35, f"L = {o.L:g} m", ha="center", va="top", fontsize=8, color=MUTED)
+        a0.text(x0 + (o.L if k else 0), -.75, (chr(65 + len(cb.spans) + 1) + "\n" if k else "") + "free end", ha="center", va="top", fontsize=8)
     for i, s in enumerate(cb.spans):
         lv = max(lv, _loads(a0, s.loads, s.L, off))
         _support(a0, off, "fixed" if i == 0 and cb.left == "fixed" else "pin", w=tot * .012)
@@ -125,16 +131,18 @@ def continuous(cb, title="", unit=""):
     a0.set_ylim(-1.7, max(1.5, lv + 1.4))
     a0.axis("off")
     a0.set_title(title or "Loading and reactions")
-    x = np.concatenate(cb.X)
-    V, M = np.concatenate(cb.V), np.concatenate(cb.M)
+    od = getattr(cb, "oh_diagrams", (None, None))
+    segs = [d for d in (od[0], *zip(cb.X, cb.V, cb.M), od[1]) if d is not None]
+    x, V, M = (np.concatenate(c) for c in zip(*segs))
     _shade(a1, x, V, BLUE, "V (kN)")
     a1.set_title("Shear force")
     _shade(a2, x, M, ORANGE, "M (kN·m)")
     a2.invert_yaxis()
     a2.set_title("Bending moment (sagging plotted below)")
-    for X, v, m in zip(cb.X, cb.V, cb.M):
+    for X, v, m in segs:
         for i in (0, -1):
-            _tag(a1, X[i], v[i], BLUE)
+            if abs(v[i]) > 1e-6:
+                _tag(a1, X[i], v[i], BLUE)
         i = int(m.argmax())
         if m[i] > 1e-6:
             _tag(a2, X[i], m[i], ORANGE, True)
